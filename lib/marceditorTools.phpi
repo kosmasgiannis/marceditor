@@ -1,0 +1,233 @@
+<?php
+/*
+   Copyright (C) 2012 Giannis Kosmas <kosmasgiannis@gmail.com>
+
+   This file is part of MARCeditor.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 dated June, 1991.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   A copy of the GNU General Public License is also available at
+   <URL:http://www.gnu.org/copyleft/gpl.html>.  You may also obtain
+   it by writing to the Free Software Foundation, Inc., 59 Temple
+   Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+class marceditorTools {
+
+  public $messages;
+
+  public function __construct() {
+    $this->messages = Array();
+  }
+
+  public function show_message($key) {
+    if (isset($this->messages[$key])) {
+      return $this->messages[$key];
+    }
+    return '';
+  }
+
+  public function load_message_dictionary() {
+    global $admin_lang;
+
+    $lines = @file(dirname(__FILE__).'/../js/marceditor_messages.'.$admin_lang.'.js', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+    if ($lines == FALSE) {
+      $lines = @file(dirname(__FILE__).'/../js/marceditor_messages.en.js', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES );
+    } 
+    if ($lines !== FALSE) {
+      array_shift($lines); // Get rid of first line. (var declaration)
+      $jsonstr = implode ('', $lines);
+      $a = json_decode($jsonstr, true);
+      $this->messages = $a;
+    }
+  }
+
+  public function html_get_parameters(){
+    foreach (array_merge($_GET, $_POST) as $key => $value) {
+      global $$key;
+      $$key = $value;
+    }
+  }  
+
+  public function total_path($doc_root_path) {
+    return $_SERVER['DOCUMENT_ROOT'] . $doc_root_path;
+  }
+
+  public function doc_root_path($total_path) {
+    return str_replace($_SERVER['DOCUMENT_ROOT'], "", $total_path);
+  }
+
+  public function parseConfig($name) {
+    $configxml = new DOMDocument;
+    if (! is_readable($name)) {
+      return FALSE;
+    }
+
+    if ( ($configxml->load($name)) == FALSE) {
+      return FALSE;
+    }
+
+    $n = $configxml->documentElement;
+    if ($n->hasChildNodes()) {
+      $cn = $n->firstChild;
+      while ($cn != NULL) {
+        if (($cn->nodeType == XML_ELEMENT_NODE)) {
+         $k = $cn->localName;
+         $v = $cn->nodeValue;
+         if (!isset($$k)) { // HTTP params have higher priority than the configuration settings
+           global $$k;
+           $$k = $v;
+         }
+        }
+        $cn = $cn->nextSibling;
+      }
+    }
+    return TRUE;
+  }
+
+  private function loadPluginsConfig() {
+    $xml = "<?xml version=\"1.0\" ?>\n<plugins xmlns:xi=\"http://www.w3.org/2001/XInclude\">\n";
+
+    if ($dh = @opendir('plugins')) {
+      while (strlen($entry = readdir($dh))) {
+        if ( ($entry == '.') || ($entry == '..') ) {
+          continue;
+        }
+        $complete_path = "plugins/$entry/$entry.cfg";
+        if ( is_file($complete_path) && is_readable($complete_path)) {
+            $xml .= "<xi:include href=\"plugins/$entry/$entry.cfg\">\n";
+            $xml .= "<xi:fallback>\n";
+            $xml .= "<error>xinclude: $entry.cfg not found</error>\n";
+            $xml .= "</xi:fallback>\n";
+            $xml .= "</xi:include>\n";
+        }
+      }
+    }
+    $xml .= "</plugins>";
+
+    $dom = new DOMDocument;
+
+    $dom->loadXML($xml);
+
+    $dom->xinclude();
+
+    //echo $dom->saveXML();
+
+    return $dom;
+  }
+
+  public function loadPlugin($name) {
+    $plugin_config = array();
+/*
+    $configxml = new DOMDocument;
+    if (! is_readable('plugins.cfg')) {
+      return FALSE;
+    }
+
+    if ( ($configxml->load('plugins.cfg')) == FALSE) {
+      return FALSE;
+    }
+*/
+
+    $configxml = $this->loadPluginsConfig();
+
+    $xpath = new DOMXPath($configxml);
+
+    $query = "/plugins/plugin[@name='$name']";
+
+    $node_list = $xpath->query($query);
+
+    if (( $node_list ) && ( $node_list->length )) {
+      foreach ($node_list as $l) {
+        if ($l->hasChildNodes() == TRUE) {
+          $nodes = $l->childNodes;
+          foreach ($nodes as $n) {
+            if (($n->nodeType == XML_ELEMENT_NODE)) {
+              if (($n->nodeName == 'phpinit_routine') or ($n->nodeName == 'php2js_routine')) {
+                $plugin_config[$n->nodeName]['name'] = $n->nodeValue;
+                $plugin_config[$n->nodeName]['args'] = array();
+                if ($n->hasAttributes()) {
+                  $attrs = $n->attributes;
+                  foreach ($attrs as $a) {
+                    $plugin_config[$n->nodeName]['args'][$a->name] = $a->value;
+                  }
+                }
+              } else if ($n->nodeName == 'setting') {
+                $k = $n->getAttribute('name');
+                $v = $n->getAttribute('value');
+                if (($k) && ($k !== '')) {
+                  global $$k;
+                  $$k = $v;
+                  $plugin_config[$n->nodeName][$k] = $v;
+                }
+              } else {
+                $plugin_config[$n->nodeName][] = $n->nodeValue;
+              }
+            }
+          }
+        }
+      }
+      return $plugin_config;
+    }
+    return FALSE;
+  }
+
+  public function paramSanityCheck() {
+    global $basedir, $plugin, $recordtype, $recno, $orgcode, $targets_dir, $templates_dir;
+    if (! (isset($plugin) && strlen($plugin)) ) {
+      $plugin = 'dummy';
+    }
+    if (! (isset($recordtype) && strlen($recordtype)) ) {
+      $recordtype = "bibliographic";
+    }
+    if (($recordtype !== "bibliographic") && ($recordtype !== "authority")) {
+      $recordtype = "bibliographic";
+    }
+    if (! (isset($recno) && strlen($recno))){
+      $recno = '';
+    }
+    if (! (isset($orgcode) && strlen($orgcode))){
+      $orgcode = '';
+    }
+    if (! (isset($marc_format) && strlen($marc_format))){
+      $marc_format = 'MARC21';
+    }
+    if (isset($targets_dir) && strlen($targets_dir)){
+      if (substr($targets_dir, 0, 1) !== '/') {
+        $targets_dir = $basedir.'/'.$targets_dir;
+      }
+      $targets_dir = marceditorTools::annihilatePath(marceditorTools::normalizePath($targets_dir));
+    } else {
+      $targets_dir = '';
+    }
+    if (isset($templates_dir) && strlen($templates_dir)){
+      if (substr($templates_dir, 0, 1) !== '/') {
+        $templates_dir = $basedir.'/'.$templates_dir;
+      }
+      $templates_dir = marceditorTools::annihilatePath(marceditorTools::normalizePath($templates_dir));
+    } else {
+      $templates_dir = '';
+    }
+  }
+
+  public function normalizePath($path) {
+    $npath = preg_replace("/\/+/", "/", preg_replace("/\/\.\//", "/", $path));
+    return $npath;
+  }
+
+  public function annihilatePath ($path) {
+      while (preg_match("/\/?[^\/]*\/\.\./", $path, $match)) {
+          $path = preg_replace("/\/?[^\/]*\/\.\./", "", $path, 1);
+      }
+      return $path;
+  }
+
+}
+?>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<targets>
+  <target>
+    <id>01</id>
+    <name>My Catalog</name>
+    <zurl>z3950.catalog.com:210/default</zurl>
+    <proxy></proxy>
+    <user></user>
+    <password></password>
+    <record_syntax>marc21</record_syntax>
+    <query_charset>utf-8</query_charset>
+    <record_charset>utf-8</record_charset>
+    <xslt></xslt>
+    <ccl_profile>
+      <term>1=1035</term>
+      <ti>1=4</ti>
+      <isbn>1=7</isbn>
+      <issn>1=8</issn>
+      <ln>1=12</ln>
+      <su>1=21</su>
+      <date>1=30</date>
+      <au>1=1003</au>
+      <pu>1=1018</pu>
+      <any>1=1035</any>
+    </ccl_profile>
+  </target>
+</targets>

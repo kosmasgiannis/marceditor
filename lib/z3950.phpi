@@ -1,0 +1,282 @@
+<?php
+/*
+   Copyright (C) 2012 Giannis Kosmas <kosmasgiannis@gmail.com>
+
+   This file is part of MARCeditor.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 dated June, 1991.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   A copy of the GNU General Public License is also available at
+   <URL:http://www.gnu.org/copyleft/gpl.html>.  You may also obtain
+   it by writing to the Free Software Foundation, Inc., 59 Temple
+   Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+$wait_timeout = 30;
+
+function z3950_search_multi($targets, $query, $querytype, $record_start, $number) {
+    global $wait_timeout;
+    $record_nr = $record_start;
+    $results = array();
+    $results['pertarget'] = array();
+    $connections = array();
+    $hits = array();
+    $totalhits = 0;
+
+    $simplexsl = new DOMDocument;
+    $simplexsl->load(realpath(dirname( __FILE__ ) . "/xsl/marc_simple.xsl"));
+    $xsltproc = new XSLTProcessor;
+    $xsltproc->importStyleSheet($simplexsl);
+
+    $fixmarcxsl = new DOMDocument;
+    $fixmarcxsl->load(realpath(dirname( __FILE__ ) . "/xsl/fix_marc21.xsl"));
+    $fixxsltproc = new XSLTProcessor;
+    $fixxsltproc->importStyleSheet($fixmarcxsl);
+
+    foreach ($targets as $target) {
+        $id = $target['id'];
+        $connections[$id] = z_search ($target, $query, $querytype);
+    }
+    $wait_opt = set_wait_options ($wait_timeout, FALSE);
+    $res = yaz_wait($wait_opt);
+    foreach ($targets as $target) {
+        $ret = array();
+        $id = $target['id'];
+        $ret['id'] = $id;
+        $ret['name'] = $target['name'];
+
+        $hits[$id] = yaz_hits($connections[$id]);
+        $ret['hits'] = $hits[$id];
+        $totalhits = $totalhits + $hits[$id];
+        if ($hits[$id] > 0) {
+            $record_nr = $record_start;
+            while ($record_nr < $record_start + $number && $record_nr <= $hits[$id]) {
+                $pos = $record_nr;
+                $record = yaz_record($connections[$id], $pos, "xml; charset=".$targets[$id]['record_charset'].",utf-8");
+                $rec["offset"] = $record_nr;
+                //$rec["raw"] = $record;
+                $transformedrecord = $record;
+                $xslt_params = Array( );
+                $transformedrecord = marcxml2fixed($record, $fixxsltproc, $xslt_params);
+                $displaydata='<marc21_simple><marc21_simple>';
+                if ($record != "") {
+                    $xslt_params = Array( 'format' => $target['record_syntax']);
+                    $displaydata = marcxml2simpledisp($record, $xsltproc, $xslt_params);
+                }
+                $rec["raw"] = $transformedrecord;
+                $rec["display"] = $displaydata;
+                $ret["records"][] = $rec;
+                if ($record_nr >= $hits[$id]) {
+                    break;
+                } else {
+                    $record_nr++;
+                }
+
+            }
+
+        }
+        $ret['error'] = display_yaz_error ($connections[$id]);
+        $results['pertarget'][] = $ret;
+    }
+    $results['totalhits'] = $totalhits;
+    return $results;
+}
+
+function z3950_search($target, $query, $querytype, $record_start, $number) {
+    global $wait_timeout;
+    $record_nr = $record_start;
+    $ret = array();
+
+    $connection = z_search ($target, $query, $querytype);
+    if (is_resource($connection)) {
+        $wait_opt = set_wait_options ($wait_timeout, FALSE);
+        $res = yaz_wait($wait_opt);
+        $hits = yaz_hits($connection);
+        $ret ["hits"] = $hits;
+
+//echo "$record_start , $number, $hits<br/>";
+        yaz_range($connection, $record_start, (($record_start + $number) <=$hits)?$number:$hits-$record_start+1);
+        yaz_present($connection);
+        if (strtolower($target['record_syntax']) == 'opac') { 
+            $rsyntax = "opac; charset=".$target['record_charset'].",utf-8";
+        } elseif (strtolower($target['record_syntax']) == 'sutrs') { 
+            // $rsyntax = "raw; charset=".$target['record_charset'].",utf-8";
+            $rsyntax = "raw";
+        } else {
+            $rsyntax = "xml; charset=".$target['record_charset'].",utf-8";
+        }
+        if ($number > 0 ) $ret["records"] = array();
+        while ($record_nr < $record_start + $number && $record_nr <= $hits) {
+            $rec = array();
+            $record = yaz_record($connection, $record_nr, $rsyntax);
+            if ($record == "") {
+                //$record_nr++;
+                //continue;
+                //logit("Record ".$record_nr." is empty");
+            }
+            $rec["offset"] = $record_nr;
+            $rec["raw"] = $record;
+            $transformedrecord = $record;
+
+            if (isset($target['record_preprocessor']) && ($target['record_preprocessor'] != '')) {
+                if (isset($target['record_preprocessor_params'])) {
+                    if (is_array($target['record_preprocessor_params'])) {
+                        $transformedrecord = call_user_func_array($target['record_preprocessor'],array_merge(array($transformedrecord), $target['record_preprocessor_params']));
+                    } else {
+                        $transformedrecord = call_user_func_array($target['record_preprocessor'],array($transformedrecord, $target['record_preprocessor_params']));
+                    }
+                } else {
+                    $transformedrecord = call_user_func_array($target['record_preprocessor'],array($transformedrecord));
+                }
+            }
+
+            if ($target['xslt'] != '') {
+                $transformedrecord = xsltTransformRecord($transformedrecord, $target['xslt']);
+            }
+
+            $rec["transformed"] = $transformedrecord;
+            $ret["records"][] = $rec;
+
+            if ($record_nr >= $hits) {
+                break;
+            }
+            $record_nr++;
+        }
+
+        if (($error = yaz_error($connection))){
+            $errorno = yaz_errno($connection);
+            $ret["error"] = "Search error ($errorno): $error";
+        }
+    } else {
+        $ret["error"] = "Search error : $connection";
+    }
+    return $ret;
+}
+
+function set_options ($info) {
+    $opt = set_wait_options (60, FALSE);
+    if (isset($info['user']) && $info['user'] != "") {
+        $opt['user'] = $info['user'];
+    }
+    if (isset($info['password']) && $info['password'] != "") {
+        $opt['password'] = $info['password'];
+    }
+    if (isset($info['proxy']) && $info['proxy'] != "") {
+        $opt['proxy'] = $info['proxy'];
+    }
+    //$opt['piggyback'] = 'FALSE';
+    return $opt;
+}
+
+function set_wait_options ($timeout, $event) {
+    //$opt["timeout"] = '30';
+    //$opt["event"] = FALSE;
+    $opt["timeout"] = $timeout;
+    $opt["event"] = $event;
+
+    return $opt;
+}
+
+function get_ccl_profile ($info) {
+    $profile = array();
+    if (isset($info['ccl_profile'])) {
+        if (is_array($info['ccl_profile'])) {
+            $profile = $info['ccl_profile'];
+        }
+    }
+    return $profile;
+}
+
+function marcxml2simpledisp ($xmldata, $xsltproc, $parameters) {
+    $xml = new DOMDocument;
+    $xml->loadXML($xmldata);
+
+    $xsltproc->setParameter('', $parameters);
+    $out = $xsltproc->transformToXML($xml);
+
+    return $out;
+}
+
+function marcxml2fixed ($xmldata, $xsltproc, $parameters) {
+    $xml = new DOMDocument;
+    $xml->loadXML($xmldata);
+
+    $xsltproc->setParameter('', $parameters);
+    $out = $xsltproc->transformToXML($xml);
+
+    return $out;
+}
+
+function xsltTransformRecord ($xmldata, $stylesheet, $parameters) {
+    $xml = new DOMDocument;
+    $xml->loadXML($xmldata);
+
+    $xsl = new DOMDocument;
+    $xsl->load($stylesheet);
+    $proc = new XSLTProcessor;
+    $proc->registerPHPFunctions();
+    $proc->setParameter('', $parameters);
+    $proc->importStyleSheet($xsl);
+
+    $out = $proc->transformToXML($xml);
+
+    return $out;
+}
+
+function z_search ($target, $query, $querytype) {
+    $opt = set_options($target);
+    $connection = yaz_connect($target['zurl'], $opt);
+
+    if (is_resource($connection)) { // Connect succeded
+        yaz_set_option($connection, "rpnCharset", $target['query_charset']);
+        //yaz_range($connection,1,10);
+        yaz_syntax($connection,$target["record_syntax"]);
+        if ($querytype == 'ccl') {
+            yaz_ccl_conf($connection, get_ccl_profile($target));
+
+            if (!yaz_ccl_parse($connection, $query, $cclresult)) {
+                return "CCL parsing failed. Query: $query . Error: ". $cclresult["errorstring"];
+            } else {
+                $rpn_query = $cclresult["rpn"];
+            }
+        } elseif ($querytype == "rpn") {
+            $rpn_query = $query;
+        }
+        if (isset($target["query_prefix"])) {
+            $rpn_query = $target["query_prefix"].' '.$rpn_query;
+        }
+        if (isset($target["query_suffix"])) {
+            $rpn_query .= ' '.$target["query_suffix"];
+        }
+        //echo "rpn_query = $rpn_query<br>";
+        yaz_search($connection,"rpn",$rpn_query);
+    } else {
+        return "Connect failed for ".$target['name'];
+    }
+  return $connection;
+}
+
+function xslt_parameters ($query, $id, $record_nr) {
+    $xslt_arr = array(
+        'query' => $query,
+        'id' => $id,
+        'record_nr' => $record_nr,
+    );
+    return $xslt_arr;
+}
+
+function display_yaz_error ($connection) {
+    if (is_resource($connection)) {
+        if (($error = yaz_error($connection))){
+            $errorno = yaz_errno($connection);
+            return "Search error ($errorno) : $error";
+        }
+    }
+}
+?>
