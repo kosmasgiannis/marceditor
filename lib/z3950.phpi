@@ -30,12 +30,12 @@ function z3950_search_multi($targets, $query, $querytype, $record_start, $number
     $totalhits = 0;
 
     $simplexsl = new DOMDocument;
-    $simplexsl->load(realpath(dirname( __FILE__ ) . "/xsl/marc_simple.xsl"));
+    $simplexsl->load(realpath(dirname( __FILE__ ) . "/../xsl/marc_simple.xsl"));
     $xsltproc = new XSLTProcessor;
     $xsltproc->importStyleSheet($simplexsl);
 
     $fixmarcxsl = new DOMDocument;
-    $fixmarcxsl->load(realpath(dirname( __FILE__ ) . "/xsl/fix_marc21.xsl"));
+    $fixmarcxsl->load(realpath(dirname( __FILE__ ) . "/../xsl/fix_marc21.xsl"));
     $fixxsltproc = new XSLTProcessor;
     $fixxsltproc->importStyleSheet($fixmarcxsl);
 
