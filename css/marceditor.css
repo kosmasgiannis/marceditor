@@ -92,14 +92,27 @@ p.warning {
   border: 1px dashed #654b24;
 }
 
-#marceditor_toolbar p {
+#convconsole {
+  margin: 10px 10px 10px 10px;
+  padding: 10px 0px 10px 0px;
+  color: #1F1F1F;
+  border: 1px dashed #654b24;
+}
+
+.toolbar p {
   padding: 0px;
   margin: 0px;
 }
 
-#marceditor_toolbar {
+.toolbar {
   padding: 4px 10px 4px 10px;
   background-color: #e9e8e7;
+}
+
+#conv_toolbar table {
+  padding: 0px;
+  margin: 0px;
+  border: 0px;
 }
 
 #editor {
@@ -143,4 +156,14 @@ input.editorbutton {
   text-align: left;
   margin-left: 25px;
   width: 75px;
+}
+
+select { 
+  margin: 0px 0px 0px 0px;
+  padding: 0px 0px 0px 0px;
+}
+
+option {
+  background-color:#336699;
+  color:#FFFFFF;
 }

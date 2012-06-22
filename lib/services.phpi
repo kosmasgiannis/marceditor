@@ -20,6 +20,7 @@
 */
 
 require_once (dirname(__FILE__) . "/z3950.phpi");
+require_once (dirname(__FILE__) . "/marceditorTools.phpi");
 
 function z3950search_cmd() {
     global $the_request;
@@ -209,6 +210,117 @@ function templatelist_cmd() {
   $xml = "<status>ok</status><templates cnt=\"$cnt\">".$xml;
   $xml .= "</templates>";
   return $xml;
+}
+
+function guessPath($exe) {
+  $paths = array('/usr/bin/', '/usr/local/bin/');
+  foreach ($paths as $p) { 
+    if (is_executable($p.$exe)) {
+      return $p.$exe;
+    }
+  }
+  return '';
+}
+
+function bibutilsConvert($in, $exe) {
+  $path2bibutils = guessPath($exe);
+  $out = FALSE;
+  if ($path2bibutils !== '') {
+    $tmpdir = sys_get_temp_dir();
+    $tmpfname_in = tempnam($tmpdir, "MCIN");
+
+    $handle = fopen($tmpfname_in, "w");
+    fwrite($handle, $in);
+    fclose($handle);
+
+    $cmd = "$path2bibutils $tmpfname_in";
+    exec( $cmd, $execarray );
+    $outxml = implode("\n", $execarray);
+
+    $xslt = realpath(dirname( __FILE__ ) .  "/../conv/MODS2MARC21slim.xsl");
+    $xml = new DOMDocument;
+    if ( $xml->loadXML($outxml) !== FALSE) {
+      $xsl = new DOMDocument;
+      if ($xsl->load($xslt) !== FALSE) {
+        $proc = new XSLTProcessor;
+        $proc->registerPHPFunctions();
+        $proc->importStyleSheet($xsl);
+        $out = $proc->transformToXML($xml);
+        $out = preg_replace('/^\<\?xml.*\?\>\s*/','',$out);
+      }
+    }
+
+    unlink($tmpfname_in);
+  }
+  return $out;
+}
+
+function xslConvert($in, $xslt) {
+  $xml = new DOMDocument;
+  $out = FALSE;
+  if ( $xml->loadXML($in) !== FALSE) {
+    $xsl = new DOMDocument;
+    if ($xsl->load($xslt) !== FALSE) {
+      $proc = new XSLTProcessor;
+      $proc->registerPHPFunctions();
+      $proc->importStyleSheet($xsl);
+      $out = $proc->transformToXML($xml);
+      $out = preg_replace('/^\<\?xml.*\?\>\s*/','',$out);
+    }
+  }
+  return $out;
+}
+
+function convert_cmd() {
+  global $the_request;
+  $inputrec = $the_request['conv_in'];
+  $from = $the_request['from'];
+  $status = 'ok';
+  $res = '';
+  $mt = new marceditorTools();
+  $convertors = $mt->loadConvertors();
+  $out = '';
+  if ($convertors !== FALSE) {
+    if (isset($convertors[$from])) {
+      if ( ($convertors[$from]['handler'] !== '') && ($convertors[$from]['param'] !== '')) {
+        switch ($convertors[$from]['handler']) {
+          case "xslt" :
+              $xslt = realpath(dirname( __FILE__ ) .  "/../conv/".$convertors[$from]['param']);
+              $out = xslConvert($inputrec, $xslt);
+              if ($out !== FALSE) {
+                $out = "<result>".$out."</result>";
+              } else {
+                $status = 'error';
+                $res = 'Conversion failed';
+              }
+              break;
+          case "bibutils" :
+              $out = bibutilsConvert($inputrec, $convertors[$from]['param']);
+              if ($out !== FALSE) {
+                $out = "<result>".$out."</result>";
+              } else {
+                $status = 'error';
+                $res = 'Conversion failed';
+              }
+              break;
+          default:
+              $status = 'error';
+              $res = 'Convertor "'.$from.'" is misconfigured';
+              break;
+        }
+      } else {
+        $status = 'error';
+        $res = 'Convertor "'.$from.'" is misconfigured';
+      }
+    } else {
+      $status = 'error';
+      $res = 'Convertor "'.$from.'" is not defined';
+    }
+  } else {
+    $status = 'error';
+    $res = 'No convertors defined';
+  }
+  return "<status>$status</status><message>$res</message>".$out;
 }
 
 function validate_cmd() {

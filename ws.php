@@ -31,6 +31,7 @@ $actions = array(
     "templatelist"=> array("path"=>1),
     "loadtemplate"=> array("path"=>1,"name"=>1),
     "validate"    => array("marcxml"=>1, "recno"=>2, "recordtype"=>1),
+    "convert"     => array("conv_in"=>1, "from"=>1),
     "fix"         => array("marcxml"=>1, "recno"=>2),
 );
 

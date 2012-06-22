@@ -482,28 +482,28 @@ function marcxml2form (marcxml) {
     myDocument = marcxml;
   }
 
-  var l = myDocument.getElementsByTagName("leader")[0].firstChild;
+  var l = myDocument.getElementsByTagNameNS('*', "leader")[0].firstChild;
   text = getText(l);
   lines[i] = '[LDR] '+text;
   i++;
-  var c = myDocument.getElementsByTagName("controlfield");
+  var c = myDocument.getElementsByTagNameNS('*', "controlfield");
   for ( j=0; j < c.length; j++ ) {
     tag = c[j].getAttribute("tag");
     text= getText(c[j]);
     lines[i] = '['+tag+'] '+text;
     i++;
   }
-  c = myDocument.getElementsByTagName("datafield");
+  c = myDocument.getElementsByTagNameNS('*',"datafield");
   for ( j=0; j < c.length; j++ ) {
     tag = c[j].getAttribute("tag");
     ind1 = c[j].getAttribute("ind1");
     ind2 = c[j].getAttribute("ind2");
     lines[i] = '['+tag+'] '+ind1+ind2+' ';
-    var s = c[j].getElementsByTagName("subfield");
+    var s = c[j].getElementsByTagNameNS('*',"subfield");
     for ( k=0; k < s.length; k++ ) {
       sfc = s[k].getAttribute("code");
       text= getText(s[k]);
-      lines[i]=lines[i]+'$'+sfc+text;
+      lines[i]=lines[i]+'$'+sfc+' '+text+' ';
     }
     i++;
   }
@@ -610,14 +610,16 @@ function textarea_pos(textarea) {
 }
 
 function servicehandler(params, callback) {
-    var enc_params = encodeParams(params);
+    //var enc_params = encodeParams(params);
     $.ajax( {
              type: "POST",
              async: false,
              cache: false,
              contentType: "application/x-www-form-urlencoded",
              dataType: "xml",
-             url : "./ws.php?"+enc_params,
+             //url : "./ws.php?"+enc_params,
+             url : "./ws.php",
+             data : params,
              accepts:  { xml: "text/xml"},
              success: callback
             }
@@ -1556,16 +1558,16 @@ function parse_validate_record (xml) {
   }
   if ((warnings.length == 0) && (errors.length ==0)) {
     html.push('<p class="valid">Record is valid</p>');
-    var t=setTimeout("clear_console();",3000);
+    var t=setTimeout("clear_console('marc');",3000);
   }
   marcconsole.html(html.join(''));
 }
 
-function clear_console() {
-  var marcconsole = $('#marcconsole');
-  if (marcconsole) {
-    $('#marcconsole p').fadeOut();
-    marcconsole.html('');
+function clear_console(what) {
+  var console = $('#'+what+'console');
+  if (console) {
+    $('#'+what+'console p').fadeOut();
+    console.html('');
   }
 }
 
@@ -1810,5 +1812,105 @@ function clear_src_textarea() {
     $('#src_textarea').val('');
   }
   return false;
+}
+
+function conv_client () {
+  var convDiv = $('#conv_client');
+  var convfield = document.getElementById("conv_in");
+  convfield.value = '';
+  convfield = document.getElementById("conv_out");
+  convfield.value = '';
+  var convconsole = $('#convconsole');
+  convconsole.html('');
+  var marceditor = $('#marceditor');
+  marceditor.hide();
+  convDiv.show();
+  return false;
+}
+
+function copy_conv_record() {
+  var convfield = document.getElementById("conv_out");
+  if ($.trim(convfield.value) !== '') {
+    if (confirm(editorMessages.are_u_sure)) {
+      var textfield = document.getElementById("src_textarea");
+      textfield.value = convfield.value;
+      return_to_marceditor('conv_client');
+    }
+  }
+  return false;
+}
+
+function convert_record () {
+  valid = false;
+  var textfield = document.getElementById("conv_in");
+  var from = $('#conv_from').val();
+  if ($.trim(textfield.value) !== '') {
+    var Params = {
+      "action": "convert",
+      "from": from,
+      "conv_in" : textfield.value
+    };
+    servicehandler(Params, parse_convert_response);
+  }
+  return false;
+}
+
+function parse_convert_response (xml) {
+  var errors = [];
+  var warnings = [];
+  var rec = null;
+  if (xml != null) {
+    xml.documentElement.normalize();
+    var Entries = xml.documentElement.childNodes;
+
+    for(var i = 0; i < Entries.length; i++) {
+      if ( Entries[i].nodeType == Node.ELEMENT_NODE ) {
+        if ( Entries[i].nodeName.toLowerCase() == 'result') {
+          if ( Entries[i].childNodes.length != 0) {
+            rec = Entries[i].childNodes[0];
+          }
+        } else if ( Entries[i].nodeName.toLowerCase() == 'message') {
+          for(var j = 0; j < Entries[i].childNodes.length; j++) {
+            if ( Entries[i].childNodes[j].nodeType == Node.ELEMENT_NODE ) {
+              if ( Entries[i].childNodes[j].nodeName.toLowerCase() == 'error') {
+                errors.push(getText(Entries[i].childNodes[j]));
+              } else if ( Entries[i].childNodes[j].nodeName.toLowerCase() == 'warning') {
+                warnings.push(getText(Entries[i].childNodes[j]));
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  var html = [];
+  var convconsole = $('#convconsole');
+  convconsole.html('');
+  if (errors.length == 0) {
+    valid = true;
+  } else {
+    html.push('<p class="error">');
+    for (var k=0; k<errors.length;  k++) {
+      html.push('Error : '+errors[k]+'<br/>');
+    }
+    html.push('</p>');
+  }
+  if (warnings.length != 0) {
+    html.push('<p class="warning">');
+    for (var k=0; k<warnings.length;  k++) {
+      html.push('Warning : '+warnings[k]+'<br/>');
+    }
+    html.push('</p>');
+  }
+  if ((warnings.length == 0) && (errors.length ==0)) {
+    html.push('<p class="valid">Record has been converted</p>');
+    var t=setTimeout("clear_console('conv');",3000);
+    if (rec !== null) {
+      var convtext = marcxml2form(rec);
+      var convfield = document.getElementById("conv_out");
+      convfield.value = convtext;
+    }
+  }
+  convconsole.html(html.join(''));
 }
 

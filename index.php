@@ -161,12 +161,24 @@ if (isset($plugin_config['phpinit_routine'])) {
         $('#download_button').click( function() { copy_client(); $(this).removeClass('ui-state-focus ui-state-hover ui-state-active'); return false;});
       }
 
+      $('#conv_button').button({ icons: {primary:'ui-icon-wrench'}});
+      $('#conv_button').click( function() { conv_client(); $(this).removeClass('ui-state-focus ui-state-hover ui-state-active'); return false;});
+      $('#convert_button').button({icons : {primary:'ui-icon-wrench'}});
+      $('#convert_button').click(function(){ convert_record(); $(this).removeClass('ui-state-focus ui-state-hover ui-state-active'); return false;});
+      $('#cselect_button').button({icons : {primary:'ui-icon-check'}});
+      $('#cselect_button').click(function(){ copy_conv_record(); $(this).removeClass('ui-state-focus ui-state-hover ui-state-active'); return false;});
+      $('#ccancel_button').button({icons : {primary:'ui-icon-cancel'}});
+      $('#ccancel_button').click(function(){ return_to_marceditor('conv_client'); $(this).removeClass('ui-state-focus ui-state-hover ui-state-active'); return false;});
+
       $('#cancel_button').button({ icons: {primary:'ui-icon-cancel'}});
       $('#cancel_button').click( function() { window.close(); $(this).removeClass('ui-state-focus ui-state-hover ui-state-active'); return false;});
 
       $('#src_textarea').val(source_value);
       $('#marcconsole').width( $('#src_textarea').width());
       $('#marceditor_toolbar').width( $('#src_textarea').width());
+      $('#conv_toolbar').width( $('#src_textarea').width());
+      $('#conv_toolbar').height( $('#marceditor_toolbar').height());
+      $('#convconsole').width( $('#src_textarea').width());
     });
   </script>
 <?php
@@ -181,18 +193,18 @@ function print_xhtml($xml)
 global $admin_lang, $marceditorTools;
 
 print '
-  </head>
-  <body>
-    <h2>'.  $marceditorTools->show_message('title') .'</h2>
+</head>
+<body>
+  <h2>'.  $marceditorTools->show_message('title') .'</h2>';
+print '
     <div id="marceditor">'.make_toolbar().'
-
       <form action="#" method="post" name="marceditorForm">
           <br/>
           <textarea id="src_textarea" class="editor" wrap="off" name="sourcetext" cols="120" rows="25" onDblClick="handle_textarea_dblClick(this);"></textarea>
           <br/>
-      </form>
+      </form>';
+print '<div id="marcconsole" class="ui-state-highlight"></div>';
 
-      <div id="marcconsole" class="ui-state-highlight"></div>';
 
 echo $xml;
 
@@ -201,9 +213,29 @@ print '
     </div>
     <div id="fieldeditor"></div>
     <div id="template_selector"></div>
-    <div id="copy_client"></div>
-  </body>
-</html>';
+    <div id="copy_client"></div>';
+$convertors = $marceditorTools->loadConvertors();
+if ($convertors !== FALSE) {
+  print '<div id="conv_client" style="display:none">';
+  print '<form action="#" method="post" name="convForm">';
+  print '<div class="toolbar" id="conv_toolbar"><table><tr><td>';
+  print '<select id="conv_from" name="from">';
+  foreach ($convertors as $c => $n) {
+    echo '<option value="'.$c.'">'.$n['name'].'</option>'."\n";
+  }
+  print '</select></td><td> <a href="#" id="convert_button">'.$marceditorTools->show_message('convert').'</a>
+         <a href="#" id="cselect_button">'.$marceditorTools->show_message('select').'</a>
+         <a href="#" id="ccancel_button">'.$marceditorTools->show_message('cancel').'</a>
+         </td></tr></table></div><br/>';
+  print $marceditorTools->show_message('conv_input').'<br/>';
+  print '<textarea id="conv_in" class="editor" wrap="off" name="conv_in" cols="120" rows="15"></textarea><br/><br/><br/>';
+  print $marceditorTools->show_message('conv_output').'<br/>
+          <textarea id="conv_out" class="editor" wrap="off" name="conv_out" cols="120" rows="15"></textarea>
+      </form>
+      <div id="convconsole" class="ui-state-highlight"></div>
+    </div>';
+}
+print "  </body>\n</html>";
 }
 
 function make_toolbar() {
@@ -214,7 +246,7 @@ global $recordtype;
 global $marceditorTools;
 //$res = '<!--<p style="font-weight:bold">'.$marceditorTools->show_message('title').'</p>-->';
 $res = '
-      <div id="marceditor_toolbar">
+      <div id="marceditor_toolbar" class="toolbar">
         <p>
           <a href="#" id="save_button">'.$marceditorTools->show_message('save').'</a>
           <a href="#" id="validate_button">'.$marceditorTools->show_message('check').'</a>
@@ -228,6 +260,7 @@ if (isset($targets_dir) && strlen($targets_dir)){
 $res .='
           <a href="#" id="download_button">'.$marceditorTools->show_message('search').'</a>';
 }
+$res .= ' <a href="#" id="conv_button">'.$marceditorTools->show_message('convert').'</a>';
 $res .= ' <a href="#" id="cancel_button">'.$marceditorTools->show_message('cancel').'</a>
         </p> 
       </div>';

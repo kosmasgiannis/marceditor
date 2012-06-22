@@ -8,6 +8,7 @@ var editorMessages =
   "clear" : "Clear",
   "templates" : "Templates",
   "cancel" : "Cancel",
+  "convert" : "Convert",
   "search" : "Search",
   "reset" : "Reset",
   "close" : "Close",
@@ -39,5 +40,7 @@ var editorMessages =
   "not_supported" : "Not supported",
   "special_editing" : "Special editing of field",
   "is_not_supported" : "is not supported",
-  "editing" : "Editing"
+  "editing" : "Editing",
+  "conv_input" : "<strong>Input Record</strong><br/><em>Copy/Paste the input record in the textarea bellow, select the conversion to perform and click on <strong>convert</strong> button.</em>",
+  "conv_output" : "<strong>Output Record</strong><br/><em>If you are satisfied with the result, click on <strong>select</strong> button to further process it in the main editor screen.</em>"
 }

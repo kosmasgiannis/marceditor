@@ -56,6 +56,37 @@ class marceditorTools {
     }
   }  
 
+  public function loadConvertors() {
+    $convertors = array();
+    $name = dirname(__FILE__).'/../conv/conv.cfg';
+    $convcfgxml = new DOMDocument;
+    if (! is_readable($name)) {
+      return FALSE;
+    }
+
+    if ( ($convcfgxml->load($name)) == FALSE) {
+      return FALSE;
+    }
+
+    $n = $convcfgxml->documentElement;
+    if ($n->hasChildNodes()) {
+      $cn = $n->firstChild;
+      while ($cn != NULL) {
+        if (($cn->nodeType == XML_ELEMENT_NODE)) {
+         $k = $cn->getAttribute('name');
+         $c = $cn->getAttribute('code');
+         $h = $cn->getAttribute('handler');
+         $p = $cn->getAttribute('param');
+         $convertors[$c]['name'] = $k;
+         $convertors[$c]['handler'] = $h;
+         $convertors[$c]['param'] = $p;
+        }
+        $cn = $cn->nextSibling;
+      }
+    }
+    return $convertors;
+  }
+
   public function total_path($doc_root_path) {
     return $_SERVER['DOCUMENT_ROOT'] . $doc_root_path;
   }
