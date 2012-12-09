@@ -213,7 +213,7 @@ function marcxml2fixed ($xmldata, $xsltproc, $parameters) {
     return $out;
 }
 
-function xsltTransformRecord ($xmldata, $stylesheet, $parameters) {
+function xsltTransformRecord ($xmldata, $stylesheet, $parameters='') {
     $xml = new DOMDocument;
     $xml->loadXML($xmldata);
 
@@ -221,7 +221,9 @@ function xsltTransformRecord ($xmldata, $stylesheet, $parameters) {
     $xsl->load($stylesheet);
     $proc = new XSLTProcessor;
     $proc->registerPHPFunctions();
-    $proc->setParameter('', $parameters);
+    if (is_array($parameters)) {
+        $proc->setParameter('', $parameters);
+    }
     $proc->importStyleSheet($xsl);
 
     $out = $proc->transformToXML($xml);
