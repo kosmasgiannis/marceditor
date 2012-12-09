@@ -239,6 +239,11 @@ function z_search ($target, $query, $querytype) {
         yaz_set_option($connection, "rpnCharset", $target['query_charset']);
         //yaz_range($connection,1,10);
         yaz_syntax($connection,$target["record_syntax"]);
+        if (isset($target['elementset'])) {
+            yaz_element($connection, $target['elementset']);
+        } else {
+            yaz_element($connection, "F");
+        }
         if ($querytype == 'ccl') {
             yaz_ccl_conf($connection, get_ccl_profile($target));
 
