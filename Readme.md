@@ -13,7 +13,7 @@ It provides the following features:
 5. Use of record templates
 6. Download of records from Z39.50 enabled catalogs
 7. Easy integration with external applications
-8. Conversions from various formats such as :
+8. Conversions from various formats such as :  
    BibTex, EndNote, RIS, ISI, PubMed, MODS, Dublin Core, ONIX, OAIMARC.
 
 Copyright (C) 2012 Giannis Kosmas. See the file LICENSE for details.
