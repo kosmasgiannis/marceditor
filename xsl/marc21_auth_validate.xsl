@@ -348,7 +348,7 @@
   </xsl:template>
   <xsl:template match="marc:datafield[@tag=020]">
     <xsl:call-template name="validateDatafield">
-      <xsl:with-param name="sCodesR">z8</xsl:with-param>
+      <xsl:with-param name="sCodesR">qz8</xsl:with-param>
       <xsl:with-param name="sCodesNR">ac6</xsl:with-param>
       <xsl:with-param name="i1Values" xml:space="preserve"> </xsl:with-param>
       <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
@@ -364,7 +364,7 @@
   </xsl:template>
   <xsl:template match="marc:datafield[@tag=024]">
     <xsl:call-template name="validateDatafield">
-      <xsl:with-param name="sCodesR">z8</xsl:with-param>
+      <xsl:with-param name="sCodesR">qz8</xsl:with-param>
       <xsl:with-param name="sCodesNR">acd26</xsl:with-param>
       <xsl:with-param name="i1Values" xml:space="preserve">78</xsl:with-param>
       <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
