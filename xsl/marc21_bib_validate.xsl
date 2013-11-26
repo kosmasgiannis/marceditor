@@ -246,12 +246,6 @@
         <tag>245</tag>
       </error>
     </xsl:if>
-    <xsl:if test="count(marc:datafield[@tag=250])&gt;1">
-      <error type="NonRepeatable">
-        <xsl:call-template name="controlNumber"/>
-        <tag>250</tag>
-      </error>
-    </xsl:if>
     <xsl:if test="count(marc:datafield[@tag=254])&gt;1">
       <error type="NonRepeatable">
         <xsl:call-template name="controlNumber"/>
@@ -572,7 +566,7 @@
   <xsl:template match="marc:datafield[@tag=046]">
     <xsl:call-template name="validateDatafield">
       <xsl:with-param name="sCodesR">8</xsl:with-param>
-      <xsl:with-param name="sCodesNR">abcdejklmn26</xsl:with-param>
+      <xsl:with-param name="sCodesNR">abcdejklmnop26</xsl:with-param>
       <xsl:with-param name="i1Values" xml:space="preserve"> </xsl:with-param>
       <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
     </xsl:call-template>
@@ -836,7 +830,7 @@
   <xsl:template match="marc:datafield[@tag=250]">
     <xsl:call-template name="validateDatafield">
       <xsl:with-param name="sCodesR">8</xsl:with-param>
-      <xsl:with-param name="sCodesNR">ab6</xsl:with-param>
+      <xsl:with-param name="sCodesNR">ab36</xsl:with-param>
       <xsl:with-param name="i1Values" xml:space="preserve"> </xsl:with-param>
       <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
     </xsl:call-template>
@@ -1134,6 +1128,22 @@
       <xsl:with-param name="sCodesR">8</xsl:with-param>
       <xsl:with-param name="sCodesNR">a6</xsl:with-param>
       <xsl:with-param name="i1Values" xml:space="preserve"> 01</xsl:with-param>
+      <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
+    </xsl:call-template>
+  </xsl:template>
+  <xsl:template match="marc:datafield[@tag=385]">
+    <xsl:call-template name="validateDatafield">
+      <xsl:with-param name="sCodesR">ab08</xsl:with-param>
+      <xsl:with-param name="sCodesNR">mn236</xsl:with-param>
+      <xsl:with-param name="i1Values" xml:space="preserve"> </xsl:with-param>
+      <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
+    </xsl:call-template>
+  </xsl:template>
+  <xsl:template match="marc:datafield[@tag=386]">
+    <xsl:call-template name="validateDatafield">
+      <xsl:with-param name="sCodesR">ab08</xsl:with-param>
+      <xsl:with-param name="sCodesNR">mn236</xsl:with-param>
+      <xsl:with-param name="i1Values" xml:space="preserve"> </xsl:with-param>
       <xsl:with-param name="i2Values" xml:space="preserve"> </xsl:with-param>
     </xsl:call-template>
   </xsl:template>
@@ -1581,7 +1591,7 @@
     <xsl:call-template name="validateDatafield">
       <xsl:with-param name="sCodesR">vxyz08</xsl:with-param>
       <xsl:with-param name="sCodesNR">a236</xsl:with-param>
-      <xsl:with-param name="i1Values" xml:space="preserve"> </xsl:with-param>
+      <xsl:with-param name="i1Values" xml:space="preserve"> 01</xsl:with-param>
       <xsl:with-param name="i2Values" xml:space="preserve">01234567</xsl:with-param>
     </xsl:call-template>
   </xsl:template>
